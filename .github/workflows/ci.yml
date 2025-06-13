@@ -36,7 +36,6 @@ jobs:
           files: ./cover.out
 
   version_tag:
-    if: github.event.repository.fork == false && github.actor != 'dependabot[bot]'
     needs:
       - tests
       - golangci
@@ -58,7 +57,6 @@ jobs:
           PRERELEASE: ${{ github.ref != 'refs/heads/main' }}
 
   build:
-    if: github.event.repository.fork == false && github.actor != 'dependabot[bot]'
     needs: version_tag
     runs-on: ubuntu-latest
     env:
@@ -70,6 +68,8 @@ jobs:
         exclude:
           - goarch: "386"
             goos: darwin
+          - goarch: "386"
+            goos: windows
     steps:
       - uses: actions/checkout@v4
         with:
