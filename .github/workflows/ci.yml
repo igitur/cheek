@@ -67,6 +67,7 @@ jobs:
       matrix:
         goos: [linux, darwin, windows] # Added 'windows'
         goarch: ["386", amd64, arm64]
+        ext: ["", ".exe"]
         exclude:
           - goarch: "386"
             goos: darwin
@@ -74,6 +75,12 @@ jobs:
             goos: windows
           - goarch: arm64 # Exclude arm64 for windows if not specifically needed
             goos: windows
+          - goos: linux
+            ext: .exe
+          - goos: darwin
+            ext: .exe
+          - goos: windows
+            ext: ""
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,13 +104,8 @@ jobs:
       - run: mkdir -p ${{ matrix.goos }}/${{ matrix.goarch }}
       - name: Build Go binary
         run: |
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            env GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-X 'github.com/bart6114/cheek/pkg.version=${{ needs.version_tag.outputs.new_tag }}' -X 'github.com/bart6114/cheek/pkg.commitSHA=${{ steps.vars.outputs.sha_short }}'" -o ${{ matrix.goos }}/${{ matrix.goarch }}/cheek.exe
-            cp ${{ matrix.goos }}/${{ matrix.goarch }}/cheek.exe ${{ matrix.goos }}/${{ matrix.goarch }}/cheek-${{ matrix.goos }}-${{ matrix.goarch }}.exe
-          else
-            env GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-X 'github.com/bart6114/cheek/pkg.version=${{ needs.version_tag.outputs.new_tag }}' -X 'github.com/bart6114/cheek/pkg.commitSHA=${{ steps.vars.outputs.sha_short }}'" -o ${{ matrix.goos }}/${{ matrix.goarch }}/cheek
-            cp ${{ matrix.goos }}/${{ matrix.goarch }}/cheek ${{ matrix.goos }}/${{ matrix.goarch }}/cheek-${{ matrix.goos }}-${{ matrix.goarch }}
-          fi
+          env GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-X 'github.com/bart6114/cheek/pkg.version=${{ needs.version_tag.outputs.new_tag }}' -X 'github.com/bart6114/cheek/pkg.commitSHA=${{ steps.vars.outputs.sha_short }}'" -o ${{ matrix.goos }}/${{ matrix.goarch }}/cheek${{ matrix.ext }}
+          cp ${{ matrix.goos }}/${{ matrix.goarch }}/cheek${{ matrix.ext }} ${{ matrix.goos }}/${{ matrix.goarch }}/cheek-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
       ## upload artifacts for release
       - uses: actions/upload-artifact@v4
         with:
