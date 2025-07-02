@@ -36,7 +36,7 @@ jobs:
           files: ./cover.out
 
   version_tag:
-    if: github.event.repository.fork == false && github.actor != 'dependabot[bot]'
+    # if: github.event.repository.fork == false && github.actor != 'dependabot[bot]'
     needs:
       - tests
       - golangci
@@ -58,7 +58,7 @@ jobs:
           PRERELEASE: ${{ github.ref != 'refs/heads/main' }}
 
   build:
-    if: github.event.repository.fork == false && github.actor != 'dependabot[bot]'
+    # if: github.event.repository.fork == false && github.actor != 'dependabot[bot]'
     needs: version_tag
     runs-on: ubuntu-latest
     env:
@@ -100,7 +100,7 @@ jobs:
           path: ${{ matrix.goos }}/${{ matrix.goarch }}/cheek-${{ matrix.goos }}-${{ matrix.goarch }}
 
   release:
-    if: github.ref == 'refs/heads/main' && needs.version_tag.outputs.new_tag != ''
+    # if: github.ref == 'refs/heads/main' && needs.version_tag.outputs.new_tag != ''
     needs:
       - build
       - version_tag
@@ -124,7 +124,7 @@ jobs:
       - build
       - version_tag
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -155,7 +155,7 @@ jobs:
       - build
       - version_tag
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    # if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       pages: write
