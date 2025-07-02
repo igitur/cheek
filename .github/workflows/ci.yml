@@ -110,7 +110,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: cheek-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ${{ matrix.goos }}/${{ matrix.goarch }}/cheek* # Changed path to include .exe for Windows
+          path: ${{ matrix.goos }}/${{ matrix.goarch }}/cheek-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
 
   release:
     # if: github.ref == 'refs/heads/main' && needs.version_tag.outputs.new_tag != ''
