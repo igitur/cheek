@@ -12,8 +12,22 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/pawelszydlo/humanize"
 	"github.com/rs/zerolog"
 )
+
+var (
+	humanizerOnce sync.Once
+	humanizerInst *humanize.Humanizer
+	humanizerErr  error
+)
+
+func getHumanizer() (*humanize.Humanizer, error) {
+	humanizerOnce.Do(func() {
+		humanizerInst, humanizerErr = humanize.New("en")
+	})
+	return humanizerInst, humanizerErr
+}
 
 // Schedule defines specs of a job schedule.
 type Schedule struct {
@@ -150,6 +164,22 @@ func (s *Schedule) initialize() error {
 		// validate cron string
 		if err := v.ValidateCron(); err != nil {
 			return err
+		}
+
+		// parse log rotation period if specified
+		if v.LogRotationPeriod != "" {
+			humanizer, err := getHumanizer()
+			if err != nil {
+				return fmt.Errorf("failed to create humanizer: %w", err)
+			}
+			duration, err := humanizer.ParseDuration(v.LogRotationPeriod)
+			if err != nil {
+				return fmt.Errorf("invalid log_rotation_period for job '%s': %w", k, err)
+			}
+			if duration <= 0 {
+				return fmt.Errorf("log_rotation_period for job '%s' must be positive", k)
+			}
+			v.logRotationDuration = duration
 		}
 
 		// init nextTick

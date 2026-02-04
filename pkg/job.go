@@ -37,12 +37,14 @@ type JobSpec struct {
 	Cron    string      `yaml:"cron,omitempty" json:"cron,omitempty"`
 	Command stringArray `yaml:"command" json:"command"`
 
-	OnSuccess         OnEvent `yaml:"on_success,omitempty" json:"on_success,omitempty"`
-	OnError           OnEvent `yaml:"on_error,omitempty" json:"on_error,omitempty"`
+	OnSuccess          OnEvent `yaml:"on_success,omitempty" json:"on_success,omitempty"`
+	OnError            OnEvent `yaml:"on_error,omitempty" json:"on_error,omitempty"`
 	OnRetriesExhausted OnEvent `yaml:"on_retries_exhausted,omitempty" json:"on_retries_exhausted,omitempty"`
 
 	Name                       string            `json:"name"`
 	Retries                    int               `yaml:"retries,omitempty" json:"retries,omitempty"`
+	LogRotationPeriod          string            `yaml:"log_rotation_period,omitempty" json:"log_rotation_period,omitempty"`
+	logRotationDuration        time.Duration     `yaml:"-"`
 	Env                        map[string]secret `yaml:"env,omitempty"`
 	WorkingDirectory           string            `yaml:"working_directory,omitempty" json:"working_directory,omitempty"`
 	DisableConcurrentExecution bool              `yaml:"disable_concurrent_execution,omitempty" json:"disable_concurrent_execution,omitempty"`
@@ -64,8 +66,8 @@ func (secret) MarshalText() ([]byte, error) {
 
 // JobRun holds information about a job execution.
 type JobRun struct {
-	LogEntryId        int     `json:"id,omitempty" db:"id"`
-	Status            *int    `json:"status,omitempty" db:"status,omitempty"`
+	LogEntryId        int  `json:"id,omitempty" db:"id"`
+	Status            *int `json:"status,omitempty" db:"status,omitempty"`
 	logBuf            bytes.Buffer
 	Log               string        `json:"log" db:"message"`
 	Name              string        `json:"name" db:"job"`
@@ -135,6 +137,8 @@ func (j *JobSpec) finalize(jr *JobRun) {
 	if j.cfg.DB == nil {
 		j.Runs = append(j.Runs, *jr)
 	}
+	// rotate old log entries if configured
+	j.rotateLogs()
 	// launch on_events
 	j.OnEvent(jr)
 }
@@ -370,6 +374,25 @@ func (j *JobSpec) loadRunsFromDb(nruns int, includeLogs bool) {
 		return
 	}
 	j.Runs = jrs
+}
+
+func (j *JobSpec) rotateLogs() {
+	if j.logRotationDuration <= 0 || j.cfg.DB == nil {
+		return
+	}
+
+	cutoffTime := time.Now().Add(-j.logRotationDuration)
+
+	result, err := j.cfg.DB.Exec("DELETE FROM log WHERE job = ? AND triggered_at < ?", j.Name, cutoffTime)
+	if err != nil {
+		j.log.Warn().Str("job", j.Name).Err(err).Msg("Failed to rotate logs")
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err == nil && rowsAffected > 0 {
+		j.log.Info().Str("job", j.Name).Int64("rows_deleted", rowsAffected).Msg("Rotated old log entries")
+	}
 }
 
 func (j *JobSpec) setNextTick(refTime time.Time, includeRefTime bool) error {

@@ -16,6 +16,7 @@ require (
 require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/pawelszydlo/humanize v0.0.0-20200522003854-142c3fe71478
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 )

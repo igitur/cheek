@@ -37,6 +37,12 @@ func InitDB(db *sqlx.DB) error {
 		return fmt.Errorf("create log table: %w", err)
 	}
 
+	// Create index for efficient log rotation queries
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_log_job_triggered_at ON log (job, triggered_at)`)
+	if err != nil {
+		return fmt.Errorf("create log index: %w", err)
+	}
+
 	// Perform cleanup to remove old, non-conforming records
 	_, err = db.Exec(`
 		DELETE FROM log
