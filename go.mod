@@ -14,6 +14,7 @@ require (
 require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/pawelszydlo/humanize v0.0.0-20260212182641-ba25cf34090b
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 )
@@ -47,6 +48,6 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )

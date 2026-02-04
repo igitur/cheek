@@ -85,7 +85,7 @@ func TestSpecialCron(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 	assert.Equal(t, *jr.Status, 0)
 }
@@ -134,7 +134,7 @@ env:
 		t.Fatal("should contain foo")
 	}
 
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 
 	jr.flushLogBuffer()
@@ -154,7 +154,7 @@ func TestStdErrOut(t *testing.T) {
 		cfg: cfg,
 	}
 
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 	jr.flushLogBuffer()
 	assert.Contains(t, jr.Log, "stdout")
@@ -173,7 +173,7 @@ func TestFailingLog(t *testing.T) {
 		cfg: cfg,
 	}
 
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 	jr.flushLogBuffer()
 	assert.Contains(t, jr.Log, "this fails")
@@ -186,7 +186,7 @@ func TestJobRunNoCommand(t *testing.T) {
 		cfg:  NewConfig(),
 	}
 
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 	assert.NotEqual(t, jr.Status, 0)
 }
@@ -201,7 +201,7 @@ func TestJobNonZero(t *testing.T) {
 		cfg: NewConfig(),
 	}
 
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 	assert.NotEqual(t, jr.Status, 0)
 }
@@ -246,7 +246,7 @@ func TestOnEventWebhook(t *testing.T) {
 			NotifyWebhook: []string{testServer.URL},
 		},
 	}
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 	j.OnEvent(&jr)
 }
@@ -277,7 +277,7 @@ func TestStringArray(t *testing.T) {
 		}
 
 		j.cfg = NewConfig()
-		jobRun := JobRun{}                  // Create a JobRun instance
+		jobRun := JobRun{}                                        // Create a JobRun instance
 		jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 
 		jr.flushLogBuffer()
@@ -477,7 +477,7 @@ func TestRetryContextInWebhooks(t *testing.T) {
 
 	// Check the final payload (should be the retries exhausted one)
 	finalPayload := webhookPayloads[len(webhookPayloads)-1]
-	
+
 	// Verify retry context fields are present
 	assert.Equal(t, float64(1), finalPayload["retry_attempt"], "Final retry attempt should be 1")
 	assert.Equal(t, true, finalPayload["retries_exhausted"], "retries_exhausted should be true")
@@ -524,7 +524,7 @@ func TestJobWithBashEval(t *testing.T) {
 	j.log = log
 	j.cfg = cfg
 
-	jobRun := JobRun{}                  // Create a JobRun instance
+	jobRun := JobRun{}                                        // Create a JobRun instance
 	jr := j.execCommand(context.Background(), jobRun, "test") // Pass JobRun instance and "test"
 	jr.flushLogBuffer()
 
@@ -653,7 +653,7 @@ func TestTriggeredByJobRunContext(t *testing.T) {
 
 	// Create a child job that will be triggered by the parent
 	childJob := &JobSpec{
-		Name:    "child-job", 
+		Name:    "child-job",
 		Command: []string{"echo", "child output"},
 		cfg:     NewConfig(),
 		log:     NewLogger("debug", nil, os.Stdout, os.Stdout),
@@ -702,4 +702,216 @@ func TestTriggeredByJobRunContext(t *testing.T) {
 	assert.Equal(t, "manual", parentContext["triggered_by"], "Parent job trigger should be correct")
 	assert.Equal(t, float64(0), parentContext["status"], "Parent job should have succeeded")
 	assert.Contains(t, parentContext["log"], "parent output", "Parent job log should contain expected output")
+}
+
+func TestLogRetentionPeriodParsing(t *testing.T) {
+	tests := []struct {
+		name        string
+		durationStr string
+		shouldError bool
+		expectedErr string
+	}{
+		{
+			name:        "valid duration - hours",
+			durationStr: "24 hours",
+			shouldError: false,
+		},
+		{
+			name:        "valid duration - days",
+			durationStr: "7 days",
+			shouldError: false,
+		},
+		{
+			name:        "valid duration - weeks",
+			durationStr: "2 weeks",
+			shouldError: false,
+		},
+		{
+			name:        "valid duration - months",
+			durationStr: "3 months",
+			shouldError: false,
+		},
+		{
+			name:        "valid duration - minutes",
+			durationStr: "90 minutes",
+			shouldError: false,
+		},
+		{
+			name:        "valid duration - complex",
+			durationStr: "1 hour and 30 minutes",
+			shouldError: false,
+		},
+		{
+			name:        "invalid duration",
+			durationStr: "invalid",
+			shouldError: true,
+			expectedErr: "invalid log_retention_period",
+		},
+		{
+			name:        "zero duration",
+			durationStr: "0 seconds",
+			shouldError: true,
+			expectedErr: "must be positive",
+		},
+		{
+			name:        "negative duration fails",
+			durationStr: "-1 hour",
+			shouldError: true,
+			expectedErr: "must be positive",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			yamlContent := fmt.Sprintf(`
+jobs:
+  test-job:
+    command: echo "test"
+    cron: "* * * * *"
+    log_retention_period: %s
+`, tc.durationStr)
+
+			// Write to temp file
+			tmpfile, err := os.CreateTemp("", "test-*.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = os.Remove(tmpfile.Name()) }()
+
+			if _, err := tmpfile.Write([]byte(yamlContent)); err != nil {
+				t.Fatal(err)
+			}
+			if err := tmpfile.Close(); err != nil {
+				t.Fatal(err)
+			}
+
+			// Try to load schedule
+			log := NewLogger("debug", nil, os.Stdout)
+			cfg := NewConfig()
+			_, err = loadSchedule(log, cfg, tmpfile.Name())
+
+			if tc.shouldError {
+				assert.Error(t, err)
+				if tc.expectedErr != "" {
+					assert.Contains(t, err.Error(), tc.expectedErr)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestLogRetentionIntegration(t *testing.T) {
+	// Create test database
+	db, err := OpenDB(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	cfg := NewConfig()
+	cfg.DB = db
+
+	// Create a job with log retention
+	j := &JobSpec{
+		Name:                 "test-retention",
+		Command:              []string{"echo", "test"},
+		logRetentionDuration: 1 * time.Hour, // Retain logs for 1 hour
+		cfg:                  cfg,
+		log:                  NewLogger("debug", nil),
+	}
+
+	// Insert some old log entries (2 hours ago)
+	oldTime := time.Now().Add(-2 * time.Hour)
+	_, err = db.Exec(`
+		INSERT INTO log (job, triggered_at, triggered_by, duration, status, message) 
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, j.Name, oldTime, "test", 100, 0, "old log entry 1")
+	assert.NoError(t, err)
+
+	_, err = db.Exec(`
+		INSERT INTO log (job, triggered_at, triggered_by, duration, status, message) 
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, j.Name, oldTime.Add(-30*time.Minute), "test", 200, 0, "old log entry 2")
+	assert.NoError(t, err)
+
+	// Insert a recent log entry (30 minutes ago)
+	recentTime := time.Now().Add(-30 * time.Minute)
+	_, err = db.Exec(`
+		INSERT INTO log (job, triggered_at, triggered_by, duration, status, message) 
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, j.Name, recentTime, "test", 150, 0, "recent log entry")
+	assert.NoError(t, err)
+
+	// Check initial count
+	var initialCount int
+	err = db.Get(&initialCount, "SELECT COUNT(*) FROM log WHERE job = ?", j.Name)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, initialCount)
+
+	// Run log cleanup
+	j.cleanupOldLogs()
+
+	// Check final count - should have deleted the 2 old entries, kept the recent one
+	var finalCount int
+	err = db.Get(&finalCount, "SELECT COUNT(*) FROM log WHERE job = ?", j.Name)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, finalCount)
+
+	// Verify the remaining entry is the recent one
+	var remainingMessage string
+	err = db.Get(&remainingMessage, "SELECT message FROM log WHERE job = ?", j.Name)
+	assert.NoError(t, err)
+	assert.Equal(t, "recent log entry", remainingMessage)
+}
+
+func TestLogRetentionNoDuration(t *testing.T) {
+	// Test that cleanup doesn't run when no duration is set
+	db, err := OpenDB(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	cfg := NewConfig()
+	cfg.DB = db
+
+	j := &JobSpec{
+		Name:    "test-no-retention",
+		Command: []string{"echo", "test"},
+		// No logRetentionDuration set
+		cfg: cfg,
+		log: NewLogger("debug", nil),
+	}
+
+	// Insert a log entry
+	_, err = db.Exec(`
+		INSERT INTO log (job, triggered_at, triggered_by, duration, status, message) 
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, j.Name, time.Now().Add(-2*time.Hour), "test", 100, 0, "old log entry")
+	assert.NoError(t, err)
+
+	// Run log cleanup - should do nothing
+	j.cleanupOldLogs()
+
+	// Verify entry still exists
+	var count int
+	err = db.Get(&count, "SELECT COUNT(*) FROM log WHERE job = ?", j.Name)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+}
+
+func TestLogRetentionNoDB(t *testing.T) {
+	// Test that cleanup doesn't crash when no DB connection
+	j := &JobSpec{
+		Name:                 "test-no-db",
+		Command:              []string{"echo", "test"},
+		logRetentionDuration: 1 * time.Hour,
+		cfg:                  NewConfig(), // No DB set
+		log:                  NewLogger("debug", nil),
+	}
+
+	// This should not panic
+	j.cleanupOldLogs()
 }
