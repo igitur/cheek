@@ -787,7 +787,7 @@ jobs:
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer os.Remove(tmpfile.Name())
+			defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 			if _, err := tmpfile.Write([]byte(yamlContent)); err != nil {
 				t.Fatal(err)
