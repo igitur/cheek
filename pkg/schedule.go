@@ -31,14 +31,16 @@ func getHumanizer() (*humanize.Humanizer, error) {
 
 // Schedule defines specs of a job schedule.
 type Schedule struct {
-	Jobs               map[string]*JobSpec `yaml:"jobs" json:"jobs"`
-	OnSuccess          OnEvent             `yaml:"on_success,omitempty" json:"on_success,omitempty"`
-	OnError            OnEvent             `yaml:"on_error,omitempty" json:"on_error,omitempty"`
-	OnRetriesExhausted OnEvent             `yaml:"on_retries_exhausted,omitempty" json:"on_retries_exhausted,omitempty"`
-	TZLocation         string              `yaml:"tz_location,omitempty" json:"tz_location,omitempty"`
-	loc                *time.Location
-	log                zerolog.Logger
-	cfg                Config
+	Jobs                 map[string]*JobSpec `yaml:"jobs" json:"jobs"`
+	OnSuccess            OnEvent             `yaml:"on_success,omitempty" json:"on_success,omitempty"`
+	OnError              OnEvent             `yaml:"on_error,omitempty" json:"on_error,omitempty"`
+	OnRetriesExhausted   OnEvent             `yaml:"on_retries_exhausted,omitempty" json:"on_retries_exhausted,omitempty"`
+	TZLocation           string              `yaml:"tz_location,omitempty" json:"tz_location,omitempty"`
+	LogRetentionPeriod   string              `yaml:"log_retention_period,omitempty" json:"log_retention_period,omitempty"`
+	loc                  *time.Location
+	log                  zerolog.Logger
+	cfg                  Config
+	logRetentionDuration time.Duration
 }
 
 func (s *Schedule) Run() {
@@ -146,6 +148,22 @@ func (s *Schedule) initialize() error {
 	}
 	s.loc = loc
 
+	// parse global log retention period if specified
+	if s.LogRetentionPeriod != "" {
+		humanizer, err := getHumanizer()
+		if err != nil {
+			return fmt.Errorf("failed to create humanizer: %w", err)
+		}
+		duration, err := humanizer.ParseDuration(s.LogRetentionPeriod)
+		if err != nil {
+			return fmt.Errorf("invalid log_retention_period for schedule: %w", err)
+		}
+		if duration <= 0 {
+			return fmt.Errorf("log_retention_period for schedule must be positive")
+		}
+		s.logRetentionDuration = duration
+	}
+
 	for k, v := range s.Jobs {
 		// check if trigger references exist
 		triggerJobs := append(v.OnSuccess.TriggerJob, v.OnError.TriggerJob...)
@@ -180,6 +198,9 @@ func (s *Schedule) initialize() error {
 				return fmt.Errorf("log_retention_period for job '%s' must be positive", k)
 			}
 			v.logRetentionDuration = duration
+		} else if s.logRetentionDuration > 0 {
+			// inherit from global schedule setting
+			v.logRetentionDuration = s.logRetentionDuration
 		}
 
 		// init nextTick

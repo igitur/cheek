@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -914,4 +915,119 @@ func TestLogRetentionNoDB(t *testing.T) {
 
 	// This should not panic
 	j.cleanupOldLogs()
+}
+
+func TestGlobalLogRetentionInheritance(t *testing.T) {
+	tests := []struct {
+		name                string
+		globalDuration      string
+		jobDuration         string
+		expectedJobDuration time.Duration
+		shouldError         bool
+		expectedErr         string
+	}{
+		{
+			name:                "global only, job inherits",
+			globalDuration:      "30 days",
+			jobDuration:         "",
+			expectedJobDuration: 30 * 24 * time.Hour,
+			shouldError:         false,
+		},
+		{
+			name:                "job overrides global",
+			globalDuration:      "30 days",
+			jobDuration:         "7 days",
+			expectedJobDuration: 7 * 24 * time.Hour,
+			shouldError:         false,
+		},
+		{
+			name:                "no global, no job",
+			globalDuration:      "",
+			jobDuration:         "",
+			expectedJobDuration: 0,
+			shouldError:         false,
+		},
+		{
+			name:                "invalid global duration",
+			globalDuration:      "invalid",
+			jobDuration:         "",
+			expectedJobDuration: 0,
+			shouldError:         true,
+			expectedErr:         "invalid log_retention_period for schedule",
+		},
+		{
+			name:                "valid global, invalid job",
+			globalDuration:      "30 days",
+			jobDuration:         "invalid",
+			expectedJobDuration: 0,
+			shouldError:         true,
+			expectedErr:         "invalid log_retention_period for job",
+		},
+		{
+			name:                "job overrides with zero duration",
+			globalDuration:      "30 days",
+			jobDuration:         "0 seconds",
+			expectedJobDuration: 0,
+			shouldError:         true,
+			expectedErr:         "must be positive",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Build YAML content
+			yamlContent := fmt.Sprintf(`
+tz_location: UTC
+log_retention_period: %s
+jobs:
+  test-job:
+    command: echo "test"
+    cron: "* * * * *"
+`, tc.globalDuration)
+
+			// Add job-specific retention if specified
+			if tc.jobDuration != "" {
+				yamlContent = strings.Replace(yamlContent, "    cron: \"* * * * *\"",
+					fmt.Sprintf("    cron: \"* * * * *\"\n    log_retention_period: %s", tc.jobDuration), 1)
+			}
+
+			// Write to temp file
+			tmpfile, err := os.CreateTemp("", "test-global-*.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = os.Remove(tmpfile.Name()) }()
+
+			if _, err := tmpfile.Write([]byte(yamlContent)); err != nil {
+				t.Fatal(err)
+			}
+			if err := tmpfile.Close(); err != nil {
+				t.Fatal(err)
+			}
+
+			// Try to load schedule
+			log := NewLogger("debug", nil, os.Stdout)
+			cfg := NewConfig()
+			schedule, err := loadSchedule(log, cfg, tmpfile.Name())
+
+			if tc.shouldError {
+				assert.Error(t, err)
+				if tc.expectedErr != "" {
+					assert.Contains(t, err.Error(), tc.expectedErr)
+				}
+			} else {
+				assert.NoError(t, err)
+				// Check that job has the expected duration
+				job := schedule.Jobs["test-job"]
+				assert.NotNil(t, job)
+				assert.Equal(t, tc.expectedJobDuration, job.logRetentionDuration)
+
+				// Check schedule has global duration if specified and valid
+				if tc.globalDuration != "" && tc.globalDuration != "invalid" && !tc.shouldError {
+					// Schedule should have a non-zero duration
+					assert.Greater(t, schedule.logRetentionDuration, time.Duration(0))
+				}
+			}
+		})
+	}
 }
