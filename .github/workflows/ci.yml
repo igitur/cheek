@@ -12,7 +12,7 @@ jobs:
           fetch-depth: '0'
       - uses: actions/setup-go@v5
         with:
-          go-version: "^1.20"
+          go-version: "^1.25"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
@@ -26,7 +26,7 @@ jobs:
           fetch-depth: '0'
       - uses: actions/setup-go@v5
         with:
-          go-version: "^1.20"
+          go-version: "^1.25"
       - name: run tests on cmd
         run: go test ./cmd
       - name: run tests on pkg
@@ -86,7 +86,7 @@ jobs:
       ## setup go
       - uses: actions/setup-go@v5
         with:
-          go-version: "^1.22"
+          go-version: "^1.25"
       ## above is fine to get latest for now, also save a copy with short sha
       - id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
