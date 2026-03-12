@@ -7,7 +7,7 @@ jobs:
         - bar
   bar:
     command:
-      - /bin/bash
+      - bash
       - -c
       - "echo bar_foo"
   shuttle:
