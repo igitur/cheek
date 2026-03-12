@@ -2,6 +2,7 @@ package cheek
 
 import (
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,11 @@ import (
 )
 
 func TestScheduleRun(t *testing.T) {
+	// Skip on Windows as signal handling works differently
+	if runtime.GOOS == "windows" {
+		t.Skip("not supported by windows")
+	}
+
 	// rough test
 	// just tries to see if we can get to a job trigger
 	// and to see that exit signals are received correctly
@@ -72,6 +78,11 @@ func TestTZInfo(t *testing.T) {
 }
 
 func TestDisableConcurrentExecution(t *testing.T) {
+	// Skip on Windows as signal handling works differently
+	if runtime.GOOS == "windows" {
+		t.Skip("not supported by windows")
+	}
+
 	// Test that when disable_concurrent_execution is true, only one instance runs
 	// and when false, multiple instances can run concurrently
 
@@ -79,14 +90,14 @@ func TestDisableConcurrentExecution(t *testing.T) {
 	testScheduleYAML := `
 jobs:
   concurrent_disabled:
-    command: 
+    command:
       - sh
       - -c
       - "echo 'start_non_concurrent'; sleep 10; echo 'end_non_concurrent'"
     cron: "* * * * * *"  # every second
     disable_concurrent_execution: true
   concurrent_enabled:
-    command: 
+    command:
       - sh
       - -c
       - "echo 'start_concurrent'; sleep 10; echo 'end_concurrent'"
@@ -412,7 +423,7 @@ jobs:
       trigger_job:
         - bar
   bar:
-    command: 
+    command:
       - echo
       - $foo
     env:
